@@ -1,0 +1,35 @@
+function dJ = dJacobian(X,q,qd,Param)%geometric model integration
+n=Param.n;
+na=Param.na;
+DeltaX=Param.DeltaX;
+L=Param.L;
+xi_0=Param.xi_0;
+j=floor(X/DeltaX);
+xia_j=xia_0 + Phi(na,n,j*DeltaX,L)*q;
+xi_j=Param.B*xia_j+Param.B_bar*Param.xi_c;
+adxij=ad_func(xi_j);
+dJ=zeros(6,n*na);
+if j~=0
+    for i=1:j
+        P=eye(6,6);
+        if i~=j
+            for to=i:j-1
+                xia_to=xia_0 + Phi(na,n,to*DeltaX,L)*q;
+                 xi_to=Param.B*xia_to+Param.B_bar*Param.xi_c;
+                P=expm(-DeltaX*ad_func(xi_to))*P;
+            end
+        end
+        xia_i_1=xi_0 + Phi(na,n,(i-1)*DeltaX,L)*q;
+        xi_i_1=Param.B*xia_i_1+Param.B_bar*Param.xi_c;
+        adxi1=ad_func(xi_i_1);
+
+        %Trapeze integration method
+        I1=(expm(-DeltaX*adxi1)*ad_func(Jacobian((i-1)*DeltaX,q,Param)*qd)+expm(zeros(6))*ad_func(Jacobian(i*DeltaX,q,Param)*qd))*DeltaX/2;
+        dJ=dJ+P*I1*Param.B*Phi(na,n,(i-1)*DeltaX,L);
+    end
+    dJ=expm(-(X-j*DeltaX)*ad_func(xi_j))*dJ;
+end
+%g=@(s)expm((s-X)*adxij)*ad_func(eta(s));
+I2=(expm((j*DeltaX-X)*adxij)*ad_func(Jacobian((j)*DeltaX,q,Param)*qd) + expm(zeros(6))*ad_func(Jacobian(X,q,Param)*qd))*(X-j*DeltaX)/2;
+dJ=dJ+I2*Phi(na,n,j*DeltaX,L);
+end
